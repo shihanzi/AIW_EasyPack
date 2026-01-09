@@ -1,9 +1,8 @@
-﻿using QBFC17Lib;
+﻿using AIW_EasyPack.License;
+using AIW_EasyPack.TaskScheduler;
+using QBXMLRP2Lib;
 using System;
 using System.IO;
-using QBXMLRPLib;
-using static System.Collections.Specialized.BitVector32;
-using QBXMLRP2Lib;
 using System.Xml;
 
 namespace AIW_EasyPack
@@ -12,43 +11,77 @@ namespace AIW_EasyPack
     {
         static void Main(string[] args)
         {
-            RequestProcessor2 rp = new RequestProcessor2();
+            bool silent = Task.IsScheduledRun();
+            string license = LicenseHelper.LoadLicense();
 
-            rp.OpenConnection("", "Amount In Words Tool");
-            string ticket = rp.BeginSession("", QBXMLRP2Lib.QBFileMode.qbFileOpenDoNotCare);
-
-            try
+            if (license == null || !LicenseHelper.ValidateLicense(license))
             {
-                DateTime lastRun = LoadLastRunTime();
+                if (silent)
+                {
+                    Log("LICENSE ERROR: No valid license found");
+                    return; // Do not continue in silent mode
+                }
 
-                //  READ invoices
-                string invoiceQueryXml = GetInvoiceQueryXml();
-                string responseXml = rp.ProcessRequest(ticket, invoiceQueryXml);
+                Console.WriteLine("This machine is not licensed.");
+                Console.WriteLine("Machine ID:");
+                Console.WriteLine(LicenseHelper.GetMachineHash());
 
-                //  PROCESS invoices
-                ProcessInvoicesFromXml(rp, ticket, responseXml, lastRun);
+                Console.Write("Enter license key: ");
+                string input = Console.ReadLine();
 
-                SaveLastRunTime(DateTime.Now);
+                if (!LicenseHelper.ValidateLicense(input))
+                {
+                    Console.WriteLine("Invalid license.");
+                    return;
+                }
+
+                LicenseHelper.SaveLicense(input);
+                Console.WriteLine("License activated successfully.");
             }
-            catch (Exception ex)
+
+            void RunJob()
             {
-                LogError(ex);
-                Console.WriteLine("An error occurred. Please check the log.");
-            }
-            finally
-            {
+
+                RequestProcessor2 rp = new RequestProcessor2();
+
+                rp.OpenConnection("", "Amount In Words Tool");
+                string ticket = rp.BeginSession("", QBXMLRP2Lib.QBFileMode.qbFileOpenDoNotCare);
+
+
+
                 try
                 {
-                    if (ticket != null)
-                        rp.EndSession(ticket);
-                }
-                catch { }
+                    DateTime lastRun = LoadLastRunTime();
 
-                try
-                {
-                    rp?.CloseConnection();
+                    //  READ invoices
+                    string invoiceQueryXml = GetInvoiceQueryXml();
+                    string responseXml = rp.ProcessRequest(ticket, invoiceQueryXml);
+
+                    //  PROCESS invoices
+                    ProcessInvoicesFromXml(rp, ticket, responseXml, lastRun);
+
+                    SaveLastRunTime(DateTime.Now);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    LogError(ex);
+                    Console.WriteLine("An error occurred. Please check the log.");
+                }
+                finally
+                {
+                    try
+                    {
+                        if (ticket != null)
+                            rp.EndSession(ticket);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        rp?.CloseConnection();
+                    }
+                    catch { }
+                }
             }
 
             void LogError(Exception ex)
@@ -250,8 +283,6 @@ namespace AIW_EasyPack
             return lines;
         }
 
-
-
         static DateTime LoadLastRunTime()
         {
             if (!File.Exists("last_run.txt"))
@@ -263,6 +294,14 @@ namespace AIW_EasyPack
         static void SaveLastRunTime(DateTime dt)
         {
             File.WriteAllText("last_run.txt", dt.ToString("o"));
+        }
+
+        static void Log(string message)
+        {
+            File.AppendAllText(
+                "aiw.log",
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} | {message}\r\n"
+            );
         }
     }
 }
