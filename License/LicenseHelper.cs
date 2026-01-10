@@ -30,7 +30,19 @@ namespace AIW_EasyPack.License
         public static bool ValidateLicense(string licenseKey)
         {
             string machineHash = GetMachineHash().Trim();
-            string expectedKey = Convert.ToBase64String(Encoding.UTF8.GetBytes(machineHash + "|AIW-2025")
+
+            File.AppendAllText(
+                "aiw.log",
+                $"VALIDATING MACHINE HASH: {machineHash}\r\n"
+            );
+
+            string expectedKey = Convert.ToBase64String(
+                Encoding.UTF8.GetBytes(machineHash + "|AIW-2025")
+            );
+
+            File.AppendAllText(
+                "aiw.log",
+                $"EXPECTED KEY: {expectedKey}\r\n"
             );
 
             return licenseKey.Trim() == expectedKey.Trim();

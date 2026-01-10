@@ -1,8 +1,9 @@
-﻿using AIW_EasyPack.License;
-using AIW_EasyPack.TaskScheduler;
+﻿using AIW_EasyPack.TaskScheduler;
+using AIW_EasyPack.License;
 using QBXMLRP2Lib;
 using System;
 using System.IO;
+using System.Linq;
 using System.Xml;
 
 namespace AIW_EasyPack
@@ -11,37 +12,47 @@ namespace AIW_EasyPack
     {
         static void Main(string[] args)
         {
-            bool silent = Task.IsScheduledRun();
+
+            Log("Main() started with args: " + string.Join(" ", args));
+
+            bool silent = args.Any(a => a.Equals("--silent", StringComparison.OrdinalIgnoreCase));
+
             string license = LicenseHelper.LoadLicense();
 
             if (license == null || !LicenseHelper.ValidateLicense(license))
             {
                 if (silent)
                 {
-                    Log("LICENSE ERROR: No valid license found");
-                    return; // Do not continue in silent mode
+                    Log("No valid license found (silent mode). Exiting.");
+                    return;
                 }
 
                 Console.WriteLine("This machine is not licensed.");
                 Console.WriteLine("Machine ID:");
                 Console.WriteLine(LicenseHelper.GetMachineHash());
-
+                Console.WriteLine();
                 Console.Write("Enter license key: ");
                 string input = Console.ReadLine();
 
                 if (!LicenseHelper.ValidateLicense(input))
                 {
                     Console.WriteLine("Invalid license.");
+                    Console.WriteLine("Press Enter to exit...");
+                    Console.ReadLine();
                     return;
                 }
 
                 LicenseHelper.SaveLicense(input);
+                Log("License activated successfully.");
+
                 Console.WriteLine("License activated successfully.");
+                Console.WriteLine("Press Enter to continue...");
+                Console.ReadLine();
             }
 
             void RunJob()
             {
-
+                Log("RunJob() entered");
                 RequestProcessor2 rp = new RequestProcessor2();
 
                 rp.OpenConnection("", "Amount In Words Tool");
